@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import os
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -10,9 +11,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models
 
-# NOTE: in production this secret comes from a secrets manager / env var,
-# never committed. Hardcoded here only because this is a local prototype.
-SECRET_KEY = "goth-saathi-prototype-secret-key-change-in-production"
+# In production (Render, etc.) set SECRET_KEY as a real environment variable
+# — generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
+# The fallback below is only for local/prototype use and is intentionally
+# obvious so it's never mistaken for a real secret.
+SECRET_KEY = os.environ.get("SECRET_KEY", "goth-saathi-prototype-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours, generous for local demo use
 
