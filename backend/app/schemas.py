@@ -45,9 +45,17 @@ class VillageOut(BaseModel):
     name: str
     union_council: Optional[str]
     district: Optional[str]
+    tehsil: Optional[str]
 
     class Config:
         from_attributes = True
+
+
+class VillageCreate(BaseModel):
+    name: str
+    district: str
+    tehsil: str
+    union_council: Optional[str] = None
 
 
 class DepartmentOut(BaseModel):
