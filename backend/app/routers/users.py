@@ -9,8 +9,48 @@ router = APIRouter(prefix="/api", tags=["reference-data"])
 
 
 @router.get("/villages", response_model=List[schemas.VillageOut])
-def list_villages(db: Session = Depends(get_db)):
-    return db.query(models.Village).all()
+def list_villages(
+    district: str | None = None,
+    tehsil: str | None = None,
+    db: Session = Depends(get_db),
+):
+    q = db.query(models.Village)
+    if district:
+        q = q.filter(models.Village.district == district)
+    if tehsil:
+        q = q.filter(models.Village.tehsil == tehsil)
+    return q.order_by(models.Village.name).all()
+
+
+@router.post("/villages", response_model=schemas.VillageOut)
+def create_village(payload: schemas.VillageCreate, db: Session = Depends(get_db)):
+    """
+    Public (no-auth) endpoint used during registration when a citizen's
+    village isn't already listed. Get-or-create by (name, district, tehsil)
+    so re-submitting the same village name doesn't create duplicates.
+    """
+    existing = (
+        db.query(models.Village)
+        .filter(
+            models.Village.name == payload.name,
+            models.Village.district == payload.district,
+            models.Village.tehsil == payload.tehsil,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    village = models.Village(
+        name=payload.name,
+        district=payload.district,
+        tehsil=payload.tehsil,
+        union_council=payload.union_council,
+    )
+    db.add(village)
+    db.commit()
+    db.refresh(village)
+    return village
 
 
 @router.get("/departments", response_model=List[schemas.DepartmentOut])
