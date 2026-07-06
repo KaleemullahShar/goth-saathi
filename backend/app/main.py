@@ -2,11 +2,31 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 
 from app.database import Base, engine
 from app.routers import auth, users, complaints, announcements, notifications, analytics
 
 Base.metadata.create_all(bind=engine)
+
+
+def _run_lightweight_migrations():
+    """
+    This project doesn't yet use a real migration tool (Alembic). For small,
+    additive schema changes like a new nullable column, this idempotent
+    check-and-add step avoids requiring a manual database console visit
+    every time a model gains a field. For anything beyond simple additive
+    columns, introduce Alembic instead of extending this function.
+    """
+    inspector = inspect(engine)
+    if "villages" in inspector.get_table_names():
+        existing_columns = {c["name"] for c in inspector.get_columns("villages")}
+        if "tehsil" not in existing_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE villages ADD COLUMN tehsil VARCHAR"))
+
+
+_run_lightweight_migrations()
 
 app = FastAPI(
     title="Goth Saathi API",
