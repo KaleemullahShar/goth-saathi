@@ -21,6 +21,7 @@ def run():
             name="Goth Muhammad Panhwar",
             union_council="UC-14 Rohri",
             district="Sukkur",
+            tehsil="Rohri",
         )
         db.add(village)
         db.flush()
