@@ -50,6 +50,7 @@ class Village(Base):
     name = Column(String, nullable=False)
     union_council = Column(String, nullable=True)
     district = Column(String, nullable=True)
+    tehsil = Column(String, nullable=True)
 
     departments = relationship("Department", back_populates="village")
     users = relationship("User", back_populates="village")
