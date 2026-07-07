@@ -25,6 +25,17 @@ def _run_lightweight_migrations():
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE villages ADD COLUMN tehsil VARCHAR"))
 
+        # Backfill the one known seed village created before this column
+        # existed, so it doesn't sit permanently blank in the new
+        # District -> Tehsil -> Village dropdown.
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "UPDATE villages SET tehsil = 'Rohri' "
+                    "WHERE name = 'Goth Muhammad Panhwar' AND tehsil IS NULL"
+                )
+            )
+
 
 _run_lightweight_migrations()
 
