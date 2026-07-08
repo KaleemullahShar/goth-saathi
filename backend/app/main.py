@@ -1,4 +1,6 @@
 import os
+import json
+import uuid
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +40,62 @@ def _run_lightweight_migrations():
 
 
 _run_lightweight_migrations()
+
+
+def _import_sindh_villages():
+    """
+    One-time bulk import of ~5,900 real Sindh villages (sourced from
+    OpenStreetMap, spatially matched against UN OCHA's official tehsil
+    boundaries -- see app/data/sindh_villages.json). Guarded by a village
+    count check so it only runs once against a fresh/near-empty database,
+    not on every serverless cold start.
+    """
+    inspector = inspect(engine)
+    if "villages" not in inspector.get_table_names():
+        return
+
+    with engine.connect() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM villages")).scalar()
+
+    if count is not None and count > 500:
+        return  # already imported
+
+    data_path = os.path.join(os.path.dirname(__file__), "data", "sindh_villages.json")
+    if not os.path.exists(data_path):
+        return
+
+    with open(data_path, encoding="utf-8") as f:
+        villages = json.load(f)
+
+    with engine.begin() as conn:
+        # Avoid re-inserting rows that already exist (e.g. the original
+        # seeded pilot village, or a partial import from a prior deploy).
+        existing = conn.execute(text("SELECT name, district, tehsil FROM villages")).fetchall()
+        existing_keys = {(r[0], r[1], r[2]) for r in existing}
+
+        rows = [
+            {
+                "id": str(uuid.uuid4()),
+                "name": v["name"],
+                "district": v["district"],
+                "tehsil": v["tehsil"],
+                "union_council": None,
+            }
+            for v in villages
+            if (v["name"], v["district"], v["tehsil"]) not in existing_keys
+        ]
+
+        if rows:
+            conn.execute(
+                text(
+                    "INSERT INTO villages (id, name, district, tehsil, union_council) "
+                    "VALUES (:id, :name, :district, :tehsil, :union_council)"
+                ),
+                rows,
+            )
+
+
+_import_sindh_villages()
 
 app = FastAPI(
     title="Goth Saathi API",
